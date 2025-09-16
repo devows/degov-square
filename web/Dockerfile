@@ -1,36 +1,39 @@
-FROM golang:1.25-rc-alpine AS builder
+FROM node:22-alpine AS base
 
-WORKDIR /code
-
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN go generate ./... \
-  && go build -o bin/degov-server cmd/main.go
-
-# Final stage
-FROM alpine:3.22 AS runner
-
-# Install ca-certificates for TLS
-RUN apk --no-cache add ca-certificates
-
+# 构建阶段
+FROM base AS builder
 WORKDIR /app
 
-# Copy the binary from builder stage
-COPY --from=builder /code/bin/degov-server .
+# 直接复制所有文件
+COPY . .
 
-# Copy migrations
-COPY --from=builder /code/migrations ./migrations
+# 启用 pnpm 并安装依赖
+RUN corepack enable pnpm \
+    && pnpm install \
+    && pnpm build
 
-# Expose port
-EXPOSE 8080
+# 生产运行阶段
+FROM base AS runner
+WORKDIR /app
 
-# Run the binary
-CMD ["./degov-server"]
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# 创建非root用户
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# 从构建阶段复制必要的文件
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# 切换到非root用户
+USER nextjs
+
+EXPOSE 3000
+
+# 启动应用
+CMD ["npm", "start"]
