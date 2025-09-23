@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	dbmodels "github.com/ringecosystem/degov-apps/database/models"
-	"github.com/ringecosystem/degov-apps/services"
-	"github.com/ringecosystem/degov-apps/types"
+	dbmodels "github.com/ringecosystem/degov-square/database/models"
+	"github.com/ringecosystem/degov-square/services"
+	"github.com/ringecosystem/degov-square/types"
 )
 
 type NotificationEventTask struct {
@@ -107,6 +107,7 @@ func (t *NotificationEventTask) buildNotificationRecordByEvent(event *dbmodels.N
 				Type:        event.Type,
 				ProposalID:  event.ProposalID,
 				VoteID:      event.VoteID,
+				Payload:     event.Payload,
 				UserID:      user.UserID,
 				UserAddress: user.UserAddress,
 				State:       dbmodels.NotificationRecordStatePending,
