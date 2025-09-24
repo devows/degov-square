@@ -1,39 +1,33 @@
-FROM node:22-alpine AS base
+FROM node:20-alpine AS builder
 
-# 构建阶段
-FROM base AS builder
 WORKDIR /app
 
-# 直接复制所有文件
+# 复制 package 文件
+COPY package.json pnpm-lock.yaml ./
+
+# 安装依赖
+RUN npm install
+
+# 复制源代码并构建
 COPY . .
+RUN npm run build
 
-# 启用 pnpm 并安装依赖
-RUN corepack enable pnpm \
-    && pnpm install \
-    && pnpm build
-
-# 生产运行阶段
-FROM base AS runner
+# 生产阶段
+FROM node:20-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-# 创建非root用户
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# 复制必要的运行文件
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./
 
-# 从构建阶段复制必要的文件
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# 切换到非root用户
-USER nextjs
+# 安装生产依赖
+RUN npm install --only=production
 
 EXPOSE 3000
 
-# 启动应用
 CMD ["npm", "start"]
