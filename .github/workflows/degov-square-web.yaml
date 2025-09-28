@@ -30,7 +30,13 @@ jobs:
       - name: Get branch names
         id: branch-names
         uses: tj-actions/branch-names@v9
-
+        
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: aitops@xiequan.info
+          password: ${{ secrets.Registry }}
       # 构建并推送镜像（分支推送时）
       - name: Publish docker image for branch push
         id: push-branch-image
